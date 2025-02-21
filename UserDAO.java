@@ -2,24 +2,37 @@ package com.example.jdbc;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserDAO {
-  public void insertUser(User user) throws SQLException {
+  public int insertUser(User user) throws SQLException {
     String query = "INSERT INTO users (name, email) VALUES (?, ?)";
+    int generatedId = -1;
+
     try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement = connection.prepareStatement(query)) {
+        PreparedStatement statement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
       statement.setString(1, user.getName());
       statement.setString(2, user.getEmail());
-      statement.executeUpdate();
+      int affectedRows = statement.executeUpdate();
+
+      if (affectedRows > 0) {
+        try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+          if (generatedKeys.next()) {
+            generatedId = generatedKeys.getInt(1);
+          }
+        }
+      }
     }
+    return generatedId;
   }
 
   public User getUser(int id) throws SQLException {
-    String query = "SELECT * FROM users WHERE id = ?";
+    String query = "SELECT * FROM users WHERE id = ? AND deleted = false";
+
     try (Connection connection = DatabaseConnection.getConnection();
         PreparedStatement statement = connection.prepareStatement(query)) {
       statement.setInt(1, id);
@@ -28,12 +41,14 @@ public class UserDAO {
         return new User(resultSet.getInt("id"), resultSet.getString("name"), resultSet.getString("email"));
       }
     }
+
     return null;
   }
 
   public List<User> getAllUsers() throws SQLException {
     List<User> users = new ArrayList<>();
     String query = "SELECT * FROM users";
+
     try (Connection connection = DatabaseConnection.getConnection();
         PreparedStatement statement = connection.prepareStatement(query);
         ResultSet resultSet = statement.executeQuery()) {
@@ -41,11 +56,13 @@ public class UserDAO {
         users.add(new User(resultSet.getInt("id"), resultSet.getString("name"), resultSet.getString("email")));
       }
     }
+
     return users;
   }
 
   public void updateUser(User user) throws SQLException {
     String query = "UPDATE users SET name = ?, email = ? WHERE id = ?";
+
     try (Connection connection = DatabaseConnection.getConnection();
         PreparedStatement statement = connection.prepareStatement(query)) {
       statement.setString(1, user.getName());
@@ -56,7 +73,15 @@ public class UserDAO {
   }
 
   public void deleteUser(int id) throws SQLException {
-    String query = "DELETE FROM users WHERE id = ?";
+    /**
+     * Hard delete.
+     */
+    // String query = "DELETE FROM users WHERE id = ?";
+    /**
+     * Soft delete.
+     */
+    String query = "UPDATE users SET deleted = true WHERE id = ?";
+
     try (Connection connection = DatabaseConnection.getConnection();
         PreparedStatement statement = connection.prepareStatement(query)) {
       statement.setInt(1, id);

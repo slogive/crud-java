@@ -12,6 +12,10 @@ public class User {
   }
 
   // Getters and setters
+
+  /**
+   * Getters and setters
+   */
   public int getId() {
     return id;
   }
